@@ -1,0 +1,6 @@
+__pycache__/
+venv/
+.idea/
+db.sqlite3
+product_url_dic
+*.log
