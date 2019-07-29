@@ -4,7 +4,8 @@ from selenium import webdriver
 import requests
 from bs4 import BeautifulSoup
 import json
-from datetime import timezone
+from datetime import timezone, datetime
+
 
 class SsfCrawler(PlatformCrawler):
     """
@@ -18,6 +19,12 @@ class SsfCrawler(PlatformCrawler):
         self.platform_info = None
         self.product_info = None
         self.brand_info = None
+        self.category_size_part_info = None
+        self.category_size_part_dic = None
+        self.sub_category_size_part_info = None
+        self.sub_category_size_part_dic = None
+        self.gender_info = None
+
         options = webdriver.ChromeOptions()
         options.add_argument('headless')
         options.add_argument('window-size=1920x1080')
@@ -151,6 +158,7 @@ class SsfCrawler(PlatformCrawler):
                     else:
                         product_url_list.append(brand_main_url.split('/Women')[0] + '/' + prdno + '/good')
                         self.logger.debug('Success|' + brand_main_url.split('/Women')[0] + '/' + prdno + '/good')
+            product_url_list = list(set(product_url_list))
             _product_url_dic.update({_brand_name: product_url_list})
 
         return _product_url_dic
@@ -159,6 +167,13 @@ class SsfCrawler(PlatformCrawler):
         # TODO: 클래스 단에서 저장할 필요가 있는 정보는 아닐지?
         self.product_info = ProductInfo.objects.filter(platform_info=self.platform_info)
         self.brand_info = BrandInfo.objects.filter(platform_info=self.platform_info)
+
+        self.category_size_part_info = CategorySizePartInfo.objects.all()
+        self.category_size_part_dic = CategorySizePartDic.objects.all()
+        self.sub_category_size_part_info = SubCategorySizePartInfo.objects.all()
+        self.sub_category_size_part_dic = SubCategorySizePartDic.objects.all()
+        self.gender_info = GenderInfo.objects.all()
+
         for _brand_name in product_url_dic.keys():
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
@@ -213,9 +228,9 @@ class SsfCrawler(PlatformCrawler):
                     if size_info is None:
                         self.logger.info('no size data')
                     else:
-                        self.save_size_table(_product_url, None, size_info)
+                        self.save_size_table(_product_url, None, _sub_category_dic, size_info)
 
-    def save_size_table(self, product_url, _category_dic, _size_info):
+    def save_size_table(self, product_url, category_dic, sub_category_dic, _size_info):
         """
         class 에 저장된 정보를 db 로 옮기는 작업
         """
@@ -226,7 +241,7 @@ class SsfCrawler(PlatformCrawler):
             size_unit_list = ['Free']
         size_part_list = list(_size_info.keys())
         # size_info 에서 product_info 기준으로 검색 되는것이 있으면 중복으로 체크하고 넘어가기
-        for size_part in size_part_list:
+        for size_part_name in size_part_list:
 
             try:
                 _size_standard_info = SizeStandard.objects.get(size_standard_name="cm")
@@ -238,25 +253,21 @@ class SsfCrawler(PlatformCrawler):
                 _size_standard_info = None
                 self.logger.info('Fail|create_or_get_size_standard_info: ' + product_url + ' Cause: ' + str(e))
 
-            try:
-                _size_part_dic = SizePartDic.objects.get(size_part_similar=size_part)
-                self.logger.debug('Success|get_size_part_dic: ' + str(_size_part_dic.size_part_similar))
-            except SizePartDic.DoesNotExist:
-                _size_part_dic = SizePartDic.objects.create(size_part_similar=size_part)
-                self.logger.debug('Success|create_size_part_dic: ' + str(_size_part_dic.size_part_similar))
-            except Exception as e:
-                _size_part_info, _size_part_dic = None, None
-                self.logger.debug('Fail|create_or_get_size_part_dic_and_info: ' + product_url + ' Cause: ' + str(e))
+            # _category_size_part_info, _category_size_part_dic = self.get_category_size_part_info_and_dic(size_part_name, category_dic)
+            _sub_category_size_part_info, _sub_category_size_part_dic = self.get_sub_category_size_part_info_and_dic(size_part_name, sub_category_dic)
 
-            size_value_partial_list = list(_size_info.get(size_part))
+            size_value_partial_list = list(_size_info.get(size_part_name))
             for idx, size_value in enumerate(size_value_partial_list):
                 if size_value == "":
                     size_value = None
                 # 중복이면 업데이트
                 try:
                     _size_info_res = SizeInfo.objects.get(
-                        size_unit=size_unit_list[idx], product_info=product_info, size_part_dic=_size_part_dic,
-                        size_part_info=_size_part_dic.size_part_info, size_standard=_size_standard_info
+                        size_unit=size_unit_list[idx], product_info=product_info, size_standard=_size_standard_info,
+                        # category_size_part_info=_category_size_part_info,
+                        # category_size_part_dic=_category_size_part_dic,
+                        sub_category_size_part_info=_sub_category_size_part_info,
+                        sub_category_size_part_dic=_sub_category_size_part_dic
                     )
                     _size_info_res.size_value = size_value
                     _size_info_res.save()
@@ -266,8 +277,11 @@ class SsfCrawler(PlatformCrawler):
                     try:
                         _size_info_res = SizeInfo.objects.create(
                             size_unit=size_unit_list[idx], size_value=size_value, product_info=product_info,
-                            size_part_dic=_size_part_dic, size_part_info=_size_part_dic.size_part_info,
-                            size_standard=_size_standard_info
+                            size_standard=_size_standard_info,
+                            # category_size_part_info=_category_size_part_info,
+                            # category_size_part_dic=_category_size_part_dic,
+                            sub_category_size_part_info=_sub_category_size_part_info,
+                            sub_category_size_part_dic=_sub_category_size_part_dic
                         )
                         self.logger.debug('Success|create size_info: ' + str(_size_info_res))
                     except Exception as e:
@@ -349,7 +363,7 @@ class SsfCrawler(PlatformCrawler):
     def get_product_price(self, product_url, product_source):
         _price, _discount_price = None, None
         try:
-            _price, _discount_price = product_source.find('div', class_='price').find('em').get_text().split('\xa0')
+            _discount_price, _price  = product_source.find('div', class_='price').find('em').get_text().split('\xa0')
             self.logger.debug('Success: ' + _price + ', ' + _discount_price)
         except ValueError:
             _price = product_source.find('div', class_='price').find('em').get_text()
@@ -411,7 +425,7 @@ class SsfCrawler(PlatformCrawler):
             self.logger.debug('Success|get gender_name: ' + str(_gender_name))
         except Exception as e:
             self.logger.info('Fail|get_gender_name: ' + product_url + ' Cause: ' + str(e.args))
-            return None, None
+            return self.gender_info.filter(gender_info_id=3).get(), None
 
         try:
             _gender_dic = GenderDic.objects.get(gender_similar=_gender_name.upper())
@@ -419,11 +433,11 @@ class SsfCrawler(PlatformCrawler):
             self.logger.debug('Success|get gender_dic: ' + str(_gender_dic))
         except GenderDic.DoesNotExist:
             _gender_dic = GenderDic.objects.create(gender_similar=_gender_name.upper())
-            _gender_info = None
+            _gender_info = self.gender_info.filter(gender_info_id=3).get()
             self.logger.debug('Success|create gender_dic: ' + str(_gender_dic))
         except Exception as e:
-            _gender_dic = None
-            _gender_info = None
+            _gender_dic = GenderDic.objects.create(gender_similar=_gender_name.upper())
+            _gender_info = self.gender_info.filter(gender_info_id=3).get()
             self.logger.info('Fail|get_or_create gender_dic: ' + product_url + ' Cause: ' + str(e))
 
         return _gender_info, _gender_dic
@@ -482,5 +496,68 @@ class SsfCrawler(PlatformCrawler):
 
         return ret_list
 
+    def get_category_size_part_info_and_dic(self, size_part_name, category_dic):
+        category_size_part_querySet = self.category_size_part_dic.filter(category_size_part_similar=size_part_name)
+        self.logger.debug(category_size_part_querySet)
+        if category_size_part_querySet is not None:
+            try:
+                for size_part_dic in category_size_part_querySet:
+                    # CategorySizePartDic
+                    size_part_info = size_part_dic.category_size_part_info
+
+                    if size_part_info.category_info == category_dic.category_info:
+                        self.logger.debug('Success|get_category_size_part_dic: ' + str(size_part_dic))
+                        return size_part_info, size_part_dic
+            except Exception as e:
+                self.logger.error('Fail|get_category_size_part_dic: ' + str(category_size_part_querySet) + ', Cause: ' + str(e))
+
+        size_part_info = None
+        # size_part_info = CategorySizePartInfo.objects.create(
+        #     category_size_part_name=size_part_name, category_info=category_dic.category_info,
+        #     category_dic=category_dic
+        # )
+        # self.logger.debug('Success|create_category_size_part_info: ' + str(size_part_info))
+        size_part_dic = CategorySizePartDic.objects.create(
+            category_size_part_similar=size_part_name, category_size_part_info=size_part_info
+        )
+        self.logger.debug('Success|create_category_size_part_dic: ' + str(size_part_dic))
+        return size_part_info, size_part_dic
+
+    def get_sub_category_size_part_info_and_dic(self, size_part_name, sub_category_dic):
+        sub_category_size_part_querySet = self.sub_category_size_part_dic.filter(sub_category_size_part_similar=size_part_name)
+        self.logger.debug(sub_category_size_part_querySet)
+        if sub_category_size_part_querySet is not None:
+            try:
+                for size_part_dic in sub_category_size_part_querySet:
+                    # SubCategorySizePartDic
+                    size_part_info = size_part_dic.sub_category_size_part_info
+
+                    if size_part_info.sub_category_info == sub_category_dic.sub_category_info:
+                        self.logger.debug('Success|get_sub_category_size_part_dic: ' + str(size_part_dic))
+                        return size_part_info, size_part_dic
+            except Exception as e:
+                self.logger.error('Fail|get_sub_category_size_part_dic: ' + str(sub_category_size_part_querySet) + ', Cause: ' + str(e))
+        size_part_info = None
+        # size_part_info = SubCategorySizePartInfo.objects.create(
+        #     sub_category_size_part_name=size_part_name, sub_category_info=sub_category_dic.sub_category_info,
+        #     sub_category_dic=sub_category_dic
+        # )
+        # self.logger.debug('Success|create_sub_category_size_part_info: ' + str(size_part_info))
+        size_part_dic = SubCategorySizePartDic.objects.create(
+            sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info
+        )
+        self.logger.debug('Success|create_sub_category_size_part_dic: ' + str(size_part_dic))
+        return size_part_info, size_part_dic
+
     def get_review_html(self, product_url, product_source):
         pass
+
+'''
+from crawler.crawler_ssf import SsfCrawler
+crawler = SsfCrawler(0)
+crawler.update_brand_list()
+brand_dic = crawler.get_brand_dic()
+brand_main_url_dic = crawler.get_brand_main_url_dic(brand_dic)
+product_url_dic = crawler.get_product_url_dic(brand_main_url_dic)
+crawler.get_product_detail(False, product_url_dic)
+'''
