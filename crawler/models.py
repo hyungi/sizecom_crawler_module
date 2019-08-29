@@ -87,13 +87,15 @@ class CategorySizePartDic(models.Model):
     category_size_part_dic_id = models.AutoField(primary_key=True)
     category_size_part_similar = models.CharField(max_length=50)
     category_size_part_info = models.ForeignKey('CategorySizePartInfo', models.DO_NOTHING, blank=True, null=True)
+    category_info = models.ForeignKey(CategoryInfo, models.DO_NOTHING, blank=True, null=True)
+    category_dic = models.ForeignKey(CategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         # managed = False
         db_table = 'category_size_part_dic'
 
     def __str__(self):
-        return "%s %s" % (self.category_size_part_similar, self.category_size_part_info)
+        return "%s | category_size_part_info: %s" % (self.category_size_part_similar, self.category_size_part_info)
 
 
 class CategorySizePartInfo(models.Model):
@@ -249,6 +251,7 @@ class ProductInfo(models.Model):
     brand_dic = models.ForeignKey(BrandDic, models.DO_NOTHING, blank=True, null=True)
     platform_info = models.ForeignKey(PlatformInfo, models.DO_NOTHING, blank=True, null=True)
     sizecom_user = models.ForeignKey('SizecomUser', models.DO_NOTHING, blank=True, null=True)
+    gender_dic = models.ForeignKey(GenderDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         # managed = False
@@ -400,6 +403,8 @@ class SubCategorySizePartDic(models.Model):
     sub_category_size_part_dic_id = models.AutoField(primary_key=True)
     sub_category_size_part_similar = models.CharField(max_length=50)
     sub_category_size_part_info = models.ForeignKey('SubCategorySizePartInfo', models.DO_NOTHING, blank=True, null=True)
+    sub_category_info = models.ForeignKey(SubCategoryInfo, models.DO_NOTHING, blank=True, null=True)
+    sub_category_dic = models.ForeignKey(SubCategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         # managed = False

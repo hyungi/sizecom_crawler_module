@@ -4,7 +4,7 @@ from selenium import webdriver
 import requests
 from bs4 import BeautifulSoup
 import json
-from datetime import timezone, datetime
+from django.utils import timezone
 
 
 class SsfCrawler(PlatformCrawler):
@@ -36,7 +36,7 @@ class SsfCrawler(PlatformCrawler):
             self.platform_info = PlatformInfo.objects.get(platform_name=self.name)
             self.logger.debug('Success|get platform_info: ' + str(self.platform_info))
         except PlatformInfo.DoesNotExist:
-            self.platform_info = PlatformInfo.objects.create(platform_name=self.name, platform_url=self.url)
+            self.platform_info = PlatformInfo.objects.create(platform_name=self.name, platform_url=self.url, reg_date=timezone.now())
             self.logger.debug('Success|create platform_info: ' + str(self.platform_info))
         except Exception as e:
             self.logger.error('Unexpected Fail|get platform_info: ' + self.url + ' Cause: ' + str(e))
@@ -82,7 +82,7 @@ class SsfCrawler(PlatformCrawler):
         for _brand_name in _new_brand_dic:
             _brand_url = _new_brand_dic.get(_brand_name)
             model_instance = BrandInfo(
-                brand_name=_brand_name, brand_url=_brand_url, platform_info=self.platform_info
+                brand_name=_brand_name, brand_url=_brand_url, platform_info=self.platform_info, reg_date=timezone.now()
             )
             model_instance.save()
             self.logger.debug('Success|update brand_info: ' + str(model_instance.brand_name))
@@ -178,14 +178,15 @@ class SsfCrawler(PlatformCrawler):
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
                 product_info = self.product_info.filter(product_url=_product_url)
-                if product_info.exists() and overlap_chk is True:
+                if product_info.exists():
+                    if overlap_chk is True:
+                        continue
                     product_source = self.get_page_html(_product_url)
                     _price, _discount_price = self.get_product_price(_product_url, product_source)
                     if _discount_price is not None:
-                        product_info.discount_price = _discount_price
-                        product_info.update()
+                        product_info.update(discount_price=_discount_price)
                         PriceTrackingInfo.objects.create(
-                            discount_price=_discount_price, update_date=datetime.now(), product_info=product_info.get()
+                            discount_price=_discount_price, update_date=timezone.now(), product_info=product_info.get()
                         )
                     self.logger.debug('Success|product_info already exist: ' + str(product_info))
                     continue
@@ -205,7 +206,8 @@ class SsfCrawler(PlatformCrawler):
                             product_name=_product_name, product_url=_product_url, product_description=_product_description,
                             product_no=_product_no, brand_info=_brand_info, platform_info=self.platform_info,
                             original_price=_price, discount_price=_discount_price, gender_info=_gender_info,
-                            sub_category_info=_sub_category_info, sub_category_dic=_sub_category_dic
+                            sub_category_info=_sub_category_info, sub_category_dic=_sub_category_dic, gender_dic=_gender_dic,
+                            reg_date=timezone.now()
                         )
                         self.logger.debug('Success|create product_info: ' + str(product_info.product_url))
                     except Exception as e:
@@ -234,7 +236,11 @@ class SsfCrawler(PlatformCrawler):
         """
         class 에 저장된 정보를 db 로 옮기는 작업
         """
-        product_info = ProductInfo.objects.get(product_url=product_url)
+        try:
+            product_info = ProductInfo.objects.get(product_url=product_url)
+        except ProductInfo.MultipleObjectsReturned:
+            self.logger.error('Critical|get_product_info: ' + product_url)
+            return
         try:
             size_unit_list = _size_info.pop('사이즈')
         except KeyError:
@@ -285,7 +291,7 @@ class SsfCrawler(PlatformCrawler):
                         )
                         self.logger.debug('Success|create size_info: ' + str(_size_info_res))
                     except Exception as e:
-                        self.logger.info('Fail|create size_info' + product_url + ' Cause: ' + str(e))
+                        self.logger.info('Fail|create size_info: ' + product_url + ' Cause: ' + str(e))
                 except Exception as e:
                     self.logger.error('Fail|' + product_url + ' Cause: ' + str(e))
 
@@ -470,6 +476,7 @@ class SsfCrawler(PlatformCrawler):
         try:
             spans = product_source.find('section', id='location').find_all('span')[-2:]
         except Exception as e:
+            self.logger.error('Fail|get_page_element: ' + product_url + ' Cause: ' + str(e))
             return None, None
         for span in spans:
             sub_category_name += span.get_text(strip=True) + " "
@@ -478,11 +485,11 @@ class SsfCrawler(PlatformCrawler):
         try:
             _sub_category_dic = SubCategoryDic.objects.get(sub_category_similar=_sub_category_name)
             _sub_category_info = _sub_category_dic.sub_category_info
-            self.logger.debug('Success|get_sub_category_dic: ' + _sub_category_dic.sub_category_similar)
+            self.logger.debug('Success|get ' + str(_sub_category_dic))
         except SubCategoryDic.DoesNotExist:
             _sub_category_dic = SubCategoryDic.objects.create(sub_category_similar=_sub_category_name)
             _sub_category_info = _sub_category_dic.sub_category_info
-            self.logger.debug('Success|create_sub_category_dic: ' + _sub_category_dic.sub_category_similar)
+            self.logger.debug('Success|create ' + str(_sub_category_dic))
         except Exception as e:
             self.logger.info('Fail|get_or_create_sub_category_dic and _info: ' + _sub_category_name + ' Cause: ' + str(e))
             return None, None
@@ -498,16 +505,13 @@ class SsfCrawler(PlatformCrawler):
 
     def get_category_size_part_info_and_dic(self, size_part_name, category_dic):
         category_size_part_querySet = self.category_size_part_dic.filter(category_size_part_similar=size_part_name)
-        self.logger.debug(category_size_part_querySet)
         if category_size_part_querySet is not None:
             try:
-                for size_part_dic in category_size_part_querySet:
+                for category_size_part_dic in category_size_part_querySet:
                     # CategorySizePartDic
-                    size_part_info = size_part_dic.category_size_part_info
-
-                    if size_part_info.category_info == category_dic.category_info:
-                        self.logger.debug('Success|get_category_size_part_dic: ' + str(size_part_dic))
-                        return size_part_info, size_part_dic
+                    if category_size_part_dic.category_dic == category_dic:
+                        self.logger.debug('Success|get_category_size_part_dic: ' + str(category_size_part_dic))
+                        return category_size_part_dic.category_size_part_info, category_size_part_dic
             except Exception as e:
                 self.logger.error('Fail|get_category_size_part_dic: ' + str(category_size_part_querySet) + ', Cause: ' + str(e))
 
@@ -518,33 +522,29 @@ class SsfCrawler(PlatformCrawler):
         # )
         # self.logger.debug('Success|create_category_size_part_info: ' + str(size_part_info))
         size_part_dic = CategorySizePartDic.objects.create(
-            category_size_part_similar=size_part_name, category_size_part_info=size_part_info
+            category_size_part_similar=size_part_name, category_size_part_info=size_part_info,
+            category_info=category_dic.category_info, category_dic=category_dic
         )
         self.logger.debug('Success|create_category_size_part_dic: ' + str(size_part_dic))
         return size_part_info, size_part_dic
 
     def get_sub_category_size_part_info_and_dic(self, size_part_name, sub_category_dic):
         sub_category_size_part_querySet = self.sub_category_size_part_dic.filter(sub_category_size_part_similar=size_part_name)
-        self.logger.debug(sub_category_size_part_querySet)
         if sub_category_size_part_querySet is not None:
             try:
-                for size_part_dic in sub_category_size_part_querySet:
+                for sub_category_size_part_dic in sub_category_size_part_querySet:
                     # SubCategorySizePartDic
-                    size_part_info = size_part_dic.sub_category_size_part_info
-
-                    if size_part_info.sub_category_info == sub_category_dic.sub_category_info:
-                        self.logger.debug('Success|get_sub_category_size_part_dic: ' + str(size_part_dic))
-                        return size_part_info, size_part_dic
+                    # TODO: info 로만 좁게 인식을 해서 중복 생성 되는 케이스가 너무 많음, 그리고 sub_category_size_part_info 는 당연히 None 인 케이스가 너무 많음
+                    if sub_category_size_part_dic.sub_category_dic == sub_category_dic:
+                        self.logger.debug('Success|get_sub_category_size_part_dic: ' + str(sub_category_size_part_dic))
+                        return sub_category_size_part_dic.sub_category_size_part_info, sub_category_size_part_dic
             except Exception as e:
                 self.logger.error('Fail|get_sub_category_size_part_dic: ' + str(sub_category_size_part_querySet) + ', Cause: ' + str(e))
         size_part_info = None
-        # size_part_info = SubCategorySizePartInfo.objects.create(
-        #     sub_category_size_part_name=size_part_name, sub_category_info=sub_category_dic.sub_category_info,
-        #     sub_category_dic=sub_category_dic
-        # )
-        # self.logger.debug('Success|create_sub_category_size_part_info: ' + str(size_part_info))
+
         size_part_dic = SubCategorySizePartDic.objects.create(
-            sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info
+            sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info,
+            sub_category_info=sub_category_dic.sub_category_info, sub_category_dic=sub_category_dic
         )
         self.logger.debug('Success|create_sub_category_size_part_dic: ' + str(size_part_dic))
         return size_part_info, size_part_dic

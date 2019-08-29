@@ -1,6 +1,6 @@
 from crawler.crawler_interface import PlatformCrawler
 from crawler.models import *
-from datetime import datetime
+from django.utils import timezone
 
 
 class MusinsaCrawler(PlatformCrawler):
@@ -26,7 +26,7 @@ class MusinsaCrawler(PlatformCrawler):
         try:
             self.platform_info = PlatformInfo.objects.get(platform_name=self.name)
         except PlatformInfo.DoesNotExist:
-            self.platform_info = PlatformInfo.objects.create(platform_name=self.name, platform_url=self.url)
+            self.platform_info = PlatformInfo.objects.create(platform_name=self.name, platform_url=self.url, reg_date=timezone.now())
         except Exception as e:
             self.logger.error('Unexpected Fail|get platform_info: ' + self.url + ' Cause: ' + str(e))
 
@@ -63,7 +63,7 @@ class MusinsaCrawler(PlatformCrawler):
                 _brand_url = _crawled_brand_dict.get(_brand_name).strip()
                 # 바로 생성하는 케이스 > 인스턴스 만들고 save 하는 것으로 변경
                 model_instance = BrandInfo(
-                    brand_name=_brand_name, brand_url=_brand_url, platform_info=self.platform_info
+                    brand_name=_brand_name, brand_url=_brand_url, platform_info=self.platform_info, reg_date=timezone.now()
                 )
                 model_instance.save()
                 self.logger.debug('Success|update brand_info: ' + str(model_instance.brand_name))
@@ -150,16 +150,17 @@ class MusinsaCrawler(PlatformCrawler):
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
                 product_info = self.product_info.filter(product_url=_product_url)
-                if product_info.exists() and overlap_chk is True:
+                if product_info.exists():
+                    if overlap_chk is True:
+                        continue
                     product_source = self.get_page_html(_product_url)
                     _price, _sale_price = self.get_product_price(_product_url, product_source)
                     if _sale_price is not None:
-                        product_info.discount_price = _sale_price
-                        product_info.update()
+                        product_info.update(discount_price=_sale_price)
                         PriceTrackingInfo.objects.create(
-                            discount_price=_sale_price, update_date=datetime.now(), product_info=product_info.get()
+                            discount_price=_sale_price, update_date=timezone.now(), product_info=product_info.get()
                         )
-                    self.logger.debug('Success|product_info already exist: ' + str(product_info.product_url))
+                    self.logger.debug('Success|product_info already exist: ' + str(product_info))
                     continue
 
                 else:
@@ -178,7 +179,8 @@ class MusinsaCrawler(PlatformCrawler):
                             product_name=_product_name, product_url=_product_url, product_description=_product_description,
                             product_no=_product_no, brand_info=_brand_info, original_price=_price, discount_price=_sale_price,
                             category_info=_category_info, category_dic=_category_dic, sub_category_info=_sub_category_info,
-                            sub_category_dic=_sub_category_dic, platform_info=self.platform_info, gender_info=_gender_info
+                            sub_category_dic=_sub_category_dic, platform_info=self.platform_info, gender_info=_gender_info, gender_dic=_gender_dic,
+                            reg_date=timezone.now()
                         )
                         self.logger.debug('Success|create product_info: ' + str(product_info.product_url))
                     except Exception as e:
@@ -294,7 +296,8 @@ class MusinsaCrawler(PlatformCrawler):
             self.logger.debug('Success|create_category_dic: ' + _category_dic.category_similar)
         except Exception as e:
             self.logger.info(
-                'Fail|get_or_create_category_dic and _info: ' + _category_name + ' Cause: ' + str(e))
+                'Fail|get_or_create_category_dic and _info: ' + _category_name + ' Cause: ' + str(e)
+            )
             return None, None
         return _category_info, _category_dic
 
@@ -469,13 +472,11 @@ class MusinsaCrawler(PlatformCrawler):
         self.logger.debug(category_size_part_querySet)
         if category_size_part_querySet is not None:
             try:
-                for size_part_dic in category_size_part_querySet:
+                for category_size_part_dic in category_size_part_querySet:
                     # CategorySizePartDic
-                    size_part_info = size_part_dic.category_size_part_info
-
-                    if size_part_info.category_info == category_dic.category_info:
-                        self.logger.debug('Success|get_category_size_part_dic: ' + str(size_part_dic))
-                        return size_part_info, size_part_dic
+                    if category_size_part_dic.category_dic == category_dic:
+                        self.logger.debug('Success|get_category_size_part_dic: ' + str(category_dic))
+                        return category_size_part_dic.category_size_part_info, category_size_part_dic
             except Exception as e:
                 self.logger.error('Fail|get_category_size_part_dic: ' + str(category_size_part_querySet) + ', Cause: ' + str(e))
 
@@ -485,7 +486,8 @@ class MusinsaCrawler(PlatformCrawler):
         )
         self.logger.debug('Success|create_category_size_part_info: ' + str(size_part_info))
         size_part_dic = CategorySizePartDic.objects.create(
-            category_size_part_similar=size_part_name, category_size_part_info=size_part_info
+            category_size_part_similar=size_part_name, category_size_part_info=size_part_info,
+            category_info=category_dic.category_info, category_dic=category_dic
         )
         self.logger.debug('Success|create_category_size_part_dic: ' + str(size_part_dic))
         return size_part_info, size_part_dic
@@ -495,13 +497,12 @@ class MusinsaCrawler(PlatformCrawler):
         self.logger.debug(sub_category_size_part_querySet)
         if sub_category_size_part_querySet is not None:
             try:
-                for size_part_dic in sub_category_size_part_querySet:
+                for sub_category_size_part_dic in sub_category_size_part_querySet:
                     # SubCategorySizePartDic
-                    size_part_info = size_part_dic.sub_category_size_part_info
-
-                    if size_part_info.sub_category_info == sub_category_dic.sub_category_info:
-                        self.logger.debug('Success|get_sub_category_size_part_dic: ' + str(size_part_dic))
-                        return size_part_info, size_part_dic
+                    # TODO: info 로만 좁게 인식을 해서 중복 생성 되는 케이스가 너무 많음, 그리고 sub_category_size_part_info 는 당연히 None 인 케이스가 너무 많음
+                    if sub_category_size_part_dic.sub_category_dic == sub_category_dic:
+                        self.logger.debug('Success|get_sub_category_size_part_dic: ' + str(sub_category_size_part_dic))
+                        return sub_category_size_part_dic.sub_category_size_part_info, sub_category_size_part_dic
             except Exception as e:
                 self.logger.error('Fail|get_sub_category_size_part_dic: ' + str(sub_category_size_part_querySet) + ', Cause: ' + str(e))
 
@@ -511,7 +512,8 @@ class MusinsaCrawler(PlatformCrawler):
         )
         self.logger.debug('Success|create_sub_category_size_part_info: ' + str(size_part_info))
         size_part_dic = SubCategorySizePartDic.objects.create(
-            sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info
+            sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info,
+            sub_category_info=sub_category_dic.sub_category_info, sub_category_dic=sub_category_dic
         )
         self.logger.debug('Success|create_sub_category_size_part_dic: ' + str(size_part_dic))
         return size_part_info, size_part_dic
