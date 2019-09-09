@@ -117,6 +117,8 @@ class UniqloCrawler(PlatformCrawler):
         self.sub_category_size_part_dic = SubCategorySizePartDic.objects.all()
         self.gender_info = GenderInfo.objects.all()
 
+        img_path_info_content = ImagePathInfo.objects.get(pk=1)
+
         for _product_url in product_url_list:
             # TODO: 개별 정보를 얻기 위해 접근하는 method 들인데, 각자 get_page_html 을 호출하고 있음, 사전에 한번만 호출하고 param 으로 넣어주는 것이 합리적이지 않을까?
             product_info = self.product_info.filter(product_url=_product_url)
@@ -175,6 +177,7 @@ class UniqloCrawler(PlatformCrawler):
                             ProductImage.objects.create(
                                 product_info=product_info,
                                 image_path=img_url,
+                                img_path_info=img_path_info_content
                             )
                             self.logger.debug('Success|create product image: ' + str(img_url))
 

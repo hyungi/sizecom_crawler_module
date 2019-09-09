@@ -145,7 +145,8 @@ class MusinsaCrawler(PlatformCrawler):
         self.sub_category_size_part_info = SubCategorySizePartInfo.objects.all()
         self.sub_category_size_part_dic = SubCategorySizePartDic.objects.all()
         self.gender_info = GenderInfo.objects.all()
-
+        img_path_info_content = ImagePathInfo.objects.get(pk=1)
+        img_path_info_thumbnail = ImagePathInfo.objects.get(pk=2)
         for _brand_name in product_url_dic.keys():
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
@@ -187,10 +188,10 @@ class MusinsaCrawler(PlatformCrawler):
                         self.logger.error('Unexpected Fail|create or get product_info: ' + _product_url + ' Cause: ' + str(e))
                         continue
 
-                    _img_url_list = self.get_image_list(_product_url, product_source)
+                    _thumb_list, _detail_list = self.get_image_list(_product_url, product_source)
                     product_image = ProductImage.objects.filter(product_info=product_info)
 
-                    for img_url in _img_url_list:
+                    for img_url in _thumb_list:
                         try:
                             # 똑같은 주소가 아니라면 업데이트
                             product_image.filter(image_path=img_url)
@@ -198,6 +199,19 @@ class MusinsaCrawler(PlatformCrawler):
                             ProductImage.objects.create(
                                 product_info=product_info,
                                 image_path=img_url,
+                                img_path_info=img_path_info_thumbnail
+                            )
+                            self.logger.debug('Success|create product image: ' + str(img_url))
+
+                    for img_url in _detail_list:
+                        try:
+                            # 똑같은 주소가 아니라면 업데이트
+                            product_image.filter(image_path=img_url)
+                        except ProductImage.DoesNotExist:
+                            ProductImage.objects.create(
+                                product_info=product_info,
+                                image_path=img_url,
+                                img_path_info=img_path_info_content
                             )
                             self.logger.debug('Success|create product image: ' + str(img_url))
 
@@ -332,22 +346,48 @@ class MusinsaCrawler(PlatformCrawler):
         return _sub_category_info, _sub_category_dic
 
     def get_image_list(self, product_url, product_source):
-        ret_list = []
-        img_bs_list = product_source.select_one('#detail_view')
-        if img_bs_list is None:
-            return ret_list
+        # <ul class="product_thumb">
+        thumb_list = []
+        detail_list = []
+        img_thumb_list = product_source.select_one('#detail_thumb')
+        img_detail_list = product_source.select_one('#detail_view')
+
+        if img_detail_list is None and img_thumb_list is None:
+            return thumb_list, detail_list
+        elif img_thumb_list is None:
+            img_detail_list = img_detail_list.find_all('img')
+            for idx, img_bs in enumerate(img_detail_list):
+                img_url = img_bs['src'][2:]
+                img_url = img_url[img_url.find('//') + 1:]
+                if img_url[0] == '/':
+                    img_url = img_url[1:]
+                detail_list.append(img_url)
+        elif img_detail_list is None:
+            img_thumb_list = img_thumb_list.find_all('img')
+            for idx, img_bs in enumerate(img_thumb_list):
+                img_url = img_bs['src'][2:]
+                img_url = img_url[img_url.find('//') + 1:]
+                if img_url[0] == '/':
+                    img_url = img_url[1:]
+                thumb_list.append(img_url)
         else:
-            img_bs_list = img_bs_list.find_all('img')
-        # file_name = os.getcwd() + file_name
-        for idx, img_bs in enumerate(img_bs_list):
-            img_url = img_bs['src'][2:]
-            img_url = img_url[img_url.find('//') + 1:]
-            if img_url[0] == '/':
-                img_url = img_url[1:]
-            ret_list.append(img_url)
+            img_thumb_list = img_thumb_list.find_all('img')
+            for idx, img_bs in enumerate(img_thumb_list):
+                img_url = img_bs['src'][2:]
+                img_url = img_url[img_url.find('//') + 1:]
+                if img_url[0] == '/':
+                    img_url = img_url[1:]
+                thumb_list.append(img_url)
+            img_detail_list = img_detail_list.find_all('img')
+            for idx, img_bs in enumerate(img_detail_list):
+                img_url = img_bs['src'][2:]
+                img_url = img_url[img_url.find('//') + 1:]
+                if img_url[0] == '/':
+                    img_url = img_url[1:]
+                detail_list.append(img_url)
+
             # urllib.request.urlretrieve(img_url, file_name + '_' + str(idx) + '.jpg')
-        self.logger.debug('in update_image - img_url_list: ' + str(ret_list))
-        return ret_list
+        return thumb_list, detail_list
 
     def get_size_table(self, product_url, product_source):
         size_table = product_source.find('table', class_='table_th_grey')

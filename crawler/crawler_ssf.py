@@ -89,7 +89,7 @@ class SsfCrawler(PlatformCrawler):
 
         return len(_new_brand_list)
 
-    def get_brand_dic(self, brand_name_list=['Balenciaga', 'Beanpole Men', 'A COLD WALL']):
+    def get_brand_dic(self, brand_name_list=['Balenciaga', 'Beanpole Men', 'MVIO', 'KUHO', 'Aspesi', 'Carhartt', 'KANGOL', 'SAINT LAURENT']):
         """
         :param brand_name_list: 이 리스트가 존재 한다면 해당 브랜드들만 크롤링한다. 기본값은 특정 브랜드 리스트
         :return brand_dic: {brand_name: brand_url} 로 구성된 dictionary 를 return 한다
@@ -174,6 +174,9 @@ class SsfCrawler(PlatformCrawler):
         self.sub_category_size_part_dic = SubCategorySizePartDic.objects.all()
         self.gender_info = GenderInfo.objects.all()
 
+        img_path_info_content = ImagePathInfo.objects.get(pk=1)
+        img_path_info_thumbnail = ImagePathInfo.objects.get(pk=2)
+
         for _brand_name in product_url_dic.keys():
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
@@ -213,19 +216,33 @@ class SsfCrawler(PlatformCrawler):
                     except Exception as e:
                         self.logger.error('Unexpected Fail|create or get product_info: ' + _product_url + ' Cause: ' + str(e))
                         continue
-                # _img_url_list = self.get_image_list(_product_url, product_source)
-                # product_image = ProductImage.objects.filter(product_info=product_info)
-                #
-                # for img_url in _img_url_list:
-                #     try:
-                #         # 똑같은 주소가 아니라면 업데이트
-                #         product_image.filter(image_path=img_url)
-                #     except ProductImage.DoesNotExist:
-                #         ProductImage.objects.create(
-                #             product_info=product_info,
-                #             image_path=img_url,
-                #         )
-                #         self.logger.debug('Success|create product image: ' + str(img_url))
+
+                    _thumb_list, _detail_list = self.get_image_list(_product_url, product_source)
+                    product_image = ProductImage.objects.filter(product_info=product_info)
+
+                    for img_url in _thumb_list:
+                        try:
+                            # 똑같은 주소가 아니라면 업데이트
+                            product_image.filter(image_path=img_url)
+                        except ProductImage.DoesNotExist:
+                            ProductImage.objects.create(
+                                product_info=product_info,
+                                image_path=img_url,
+                                img_path_info=img_path_info_thumbnail
+                            )
+                            self.logger.debug('Success|create product image: ' + str(img_url))
+
+                    for img_url in _detail_list:
+                        try:
+                            # 똑같은 주소가 아니라면 업데이트
+                            product_image.filter(image_path=img_url)
+                        except ProductImage.DoesNotExist:
+                            ProductImage.objects.create(
+                                product_info=product_info,
+                                image_path=img_url,
+                                img_path_info=img_path_info_content
+                            )
+                            self.logger.debug('Success|create product image: ' + str(img_url))
 
                     if size_info is None:
                         self.logger.info('no size data')
@@ -496,12 +513,35 @@ class SsfCrawler(PlatformCrawler):
         return _sub_category_info, _sub_category_dic
 
     def get_image_list(self, product_url, product_source):
-        '.goods_detail > p:nth-child(5)'
-        ret_list = []
-        # bs = BeautifulSoup(product_source, 'html.parser')
-        # bs.
+        thumb_img_list = []
+        detail_img_list = []
+        try:
+            thumb_img_list = product_source.find('div', class_='gallery').find_all('img')
+            for idx, img in enumerate(thumb_img_list):
+                thumb_img_list[idx] = img['src']
+        except AttributeError as e:
+            self.logger.info("Fail|get_thumb: " + product_url)
 
-        return ret_list
+        try:
+            detail_img_list = product_source.find('div', class_='about').find_all('img')
+            for idx, img in enumerate(detail_img_list):
+                detail_img_list[idx] = img['src']
+        except AttributeError:
+            try:
+                detail_img_list = product_source.select_one('.goods_detail > p:nth-child(5)').find_all('img')
+                for idx, img in enumerate(detail_img_list):
+                    detail_img_list[idx] = img['src']
+            except AttributeError:
+                try:
+                    detail_img_list = product_source.select_one('.goods_detail').find_all('img')
+                    for idx, img in enumerate(detail_img_list):
+                        detail_img_list[idx] = img['src']
+                except Exception as e:
+                    self.logger.info("Fail|get_detail: " + product_url + ' Casue: ' + str(e))
+        except Exception as e:
+            self.logger.info("Fail|get_detail: " + product_url + ' Casue: ' + str(e))
+
+        return thumb_img_list, detail_img_list
 
     def get_category_size_part_info_and_dic(self, size_part_name, category_dic):
         category_size_part_querySet = self.category_size_part_dic.filter(category_size_part_similar=size_part_name)
@@ -516,11 +556,7 @@ class SsfCrawler(PlatformCrawler):
                 self.logger.error('Fail|get_category_size_part_dic: ' + str(category_size_part_querySet) + ', Cause: ' + str(e))
 
         size_part_info = None
-        # size_part_info = CategorySizePartInfo.objects.create(
-        #     category_size_part_name=size_part_name, category_info=category_dic.category_info,
-        #     category_dic=category_dic
-        # )
-        # self.logger.debug('Success|create_category_size_part_info: ' + str(size_part_info))
+
         size_part_dic = CategorySizePartDic.objects.create(
             category_size_part_similar=size_part_name, category_size_part_info=size_part_info,
             category_info=category_dic.category_info, category_dic=category_dic

@@ -14,8 +14,11 @@ class CrawlerManager:
     def run_crawler(self, crawler_name):
         """
         :param crawler_name: 동작하고자 하는 크롤러의 이름
-        :return: 크롤러가 정상동작함: True, 크롤러 이름 | 그렇지 않다면: False, 오류 또는 존재하는 크롤러의 이름 리스트
+        :return: 크롤러가 정상동작함: True, 크롤러 이름 | 그렇지 않다면: False, 크롤러 이름, 성공한 단계 까지의 변수, 오류 / False, 존재하는 크롤러의 이름 리스트
+        성공한 단계 까지의 변수를 return 하는 이유는 크롤러를 각 단계별로 다시 돌리는 시간이 많이 걸리기 때문에 성공한 단계 까지는 저장을 해서
+        다시 크롤러를 돌릴 수 있도록 한다.
         """
+        brand_dic, brand_main_url_dic, product_url_dic = None, None, None
         if crawler_name == '무신사' or crawler_name.lower() == 'musinsa':
             try:
                 self.musinsa_crawler.update_brand_list()
@@ -25,7 +28,12 @@ class CrawlerManager:
                 self.musinsa_crawler.get_product_detail(False, product_url_dic)
                 return True, crawler_name
             except Exception as e:
-                return False, e
+                if product_url_dic is not None:
+                    return False, crawler_name, product_url_dic, e
+                elif brand_main_url_dic is not None:
+                    return False, crawler_name, brand_main_url_dic, e
+                elif brand_dic is not None:
+                    return False, crawler_name, brand_dic, e
         elif crawler_name == '유니클로' or crawler_name.lower() == 'uniqlo':
             try:
                 self.uniqlo_crawler.update_brand_list()
@@ -35,7 +43,12 @@ class CrawlerManager:
                 self.uniqlo_crawler.get_product_detail(False, product_url_dic)
                 return True, crawler_name
             except Exception as e:
-                return False, e
+                if product_url_dic is not None:
+                    return False, crawler_name, product_url_dic, e
+                elif brand_main_url_dic is not None:
+                    return False, crawler_name, brand_main_url_dic, e
+                elif brand_dic is not None:
+                    return False, crawler_name, brand_dic, e
         elif crawler_name == 'SSF' or crawler_name.lower() == 'ssf':
             try:
                 self.ssf_crawler.update_brand_list()
@@ -45,7 +58,12 @@ class CrawlerManager:
                 self.ssf_crawler.get_product_detail(False, product_url_dic)
                 return True, crawler_name
             except Exception as e:
-                return False, e
+                if product_url_dic is not None:
+                    return False, crawler_name, product_url_dic, e
+                elif brand_main_url_dic is not None:
+                    return False, crawler_name, brand_main_url_dic, e
+                elif brand_dic is not None:
+                    return False, crawler_name, brand_dic, e
         else:
             print('크롤러 이름을 다시 확인해주세요')
             return False, self.crawler_name_list
