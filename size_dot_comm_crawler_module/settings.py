@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
-import os
+import os, json
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -20,16 +20,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '%xcb!3j8nt&j$bn@iibl(eh6a*w-(_mswd35zyr1o*b*l+y&xf'
-
+with open(os.path.join(BASE_DIR, 'size_dot_comm_crawler_module/config.json'), 'r') as fp:
+    CONFIG = json.load(fp)
+SECRET_KEY = CONFIG["SECRET_KEY"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'testserver',
-    '127.0.0.1',
-    'localhost'
-]
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -40,8 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'crawler',
-    'crawler.apps',
+    'crawler.apps.CrawlerConfig'
+    'rest_framework'
 ]
 
 MIDDLEWARE = [
@@ -80,18 +77,13 @@ WSGI_APPLICATION = 'size_dot_comm_crawler_module.wsgi.application'
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
 DATABASES = {
-    # TODO: config.json 활용하기
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    # },
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'sizecom_dev',
-        'USER': 'sizecom_admin',
-        'PASSWORD': 'sz135!@',
-        'HOST': '115.23.164.22',
-        'PORT': '5432'
+        'NAME': CONFIG["MAIN"]["NAME"],
+        'USER': CONFIG["MAIN"]["USER"],
+        'PASSWORD': CONFIG["MAIN"]["PASSWORD"],
+        'HOST': CONFIG["MAIN"]["HOST"],
+        'PORT': CONFIG["MAIN"]["PORT"],
     }
 }
 
@@ -119,13 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'Asia/Seoul'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
 

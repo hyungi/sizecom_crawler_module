@@ -1,6 +1,5 @@
-from crawler.crawler_interface import PlatformCrawler
-from crawler.models import *
-from datetime import datetime
+from .crawler_interface import PlatformCrawler
+from .models import *
 from django.utils import timezone
 
 
@@ -21,6 +20,7 @@ class UniqloCrawler(PlatformCrawler):
         self.size_info = {}
         self.brand_name = name
         self.size_standard = ""
+        self.thumb_nail_img_dic = {}
 
         try:
             self.platform_info = PlatformInfo.objects.get(platform_name=self.name)
@@ -99,6 +99,9 @@ class UniqloCrawler(PlatformCrawler):
                     for product in product_by_sub_category_dict.get(category):
                         try:
                             _product_url = self.url + product.find("a", href=True)['href']
+                            _thumb_nail_img_url = product.find("img")['src']
+                            self.thumb_nail_img_dic.update({_product_url: _thumb_nail_img_url})
+                            self.logger.debug('Success|get_thumb_img: ' + _thumb_nail_img_url)
                             self.sub_category.update({_product_url: category})
                             product_url_list.append(_product_url)
                             self.logger.debug('Success|get_category')
@@ -118,106 +121,121 @@ class UniqloCrawler(PlatformCrawler):
         self.gender_info = GenderInfo.objects.all()
 
         img_path_info_content = ImagePathInfo.objects.get(pk=1)
+        img_path_info_thumbnail = ImagePathInfo.objects.get(pk=2)
 
         for _product_url in product_url_list:
             # TODO: 개별 정보를 얻기 위해 접근하는 method 들인데, 각자 get_page_html 을 호출하고 있음, 사전에 한번만 호출하고 param 으로 넣어주는 것이 합리적이지 않을까?
             product_info = self.product_info.filter(product_url=_product_url)
             product_source = self.get_page_html(_product_url)
-            _price = self.get_product_price(_product_url, product_source)
+            price = self.get_product_price(_product_url, product_source)
 
             if product_info.exists():
                 self.logger.info('product exist: ' + str(product_info))
                 if overlap_chk is True:
                     continue
                 if self.get_page_html(_product_url).select_one('#limitedPrice') is not None:
-                    product_info.update(discount_price=_price)
+                    # TODO: 현재 가격과 다르지 않다면 업데이트 하지 않기
+                    product_info.update(discount_price=price)
                     price_tracking_info = PriceTrackingInfo.objects.create(
-                        discount_price=_price, update_date=datetime.now(), product_info=product_info.get()
+                        discount_price=price, update_date=timezone.now(), product_info=product_info.get()
                     )
                     self.logger.info('Success|update price_tracking_info: ' + str(price_tracking_info))
                 continue
-            else:
-                _category_info, _category_dic = self.get_category_info_and_dic(_product_url, product_source)
-                _sub_category_info, _sub_category_dic = self.get_sub_category_info_and_dic(_product_url, _category_dic)
-                _product_name = self.get_product_name(_product_url, product_source)
 
-                _product_no = self.get_product_no(_product_url, product_source)
-                _product_description = self.get_product_description(_product_url, product_source)
-                _gender_info, _gender_dic = self.get_gender_info(_product_url, product_source)
+            category_info, category_dic = self.get_category_info_and_dic(_product_url, product_source)
+            sub_category_info, sub_category_dic = self.get_sub_category_info_and_dic(_product_url, category_dic)
+            product_name = self.get_product_name(_product_url, product_source)
 
+            product_no = self.get_product_no(_product_url, product_source)
+            product_description = self.get_product_description(_product_url, product_source)
+            gender_info, gender_dic = self.get_gender_info(_product_url, product_source)
+
+            try:
+                product_info = ProductInfo.objects.create(
+                    product_name=product_name, product_url=_product_url, product_description=product_description,
+                    product_no=product_no, platform_info=self.platform_info, brand_info=self.brand_info,
+                    original_price=price, gender_info=gender_info, gender_dic=gender_dic,
+                    category_info=category_info, category_dic=category_dic, sub_category_info=sub_category_info,
+                    sub_category_dic=sub_category_dic
+                )
+            except Exception as e:
+                self.logger.error('Unexpected Fail|create_product_info' + _product_url + ' Cause: ' + str(e))
+                continue
+            try:
+                self.size_standard = SizeStandard.objects.get(size_standard_name='cm')
+                self.logger.debug('Success|get_size_standard')
+            except SizeStandard.DoesNotExist:
+                self.size_standard = SizeStandard.objects.create(size_standard_name='cm')
+                self.logger.debug('Success|create_size_standard')
+            except Exception as e:
+                self.size_standard = None
+                self.logger.error('Unexpected Fail|get_or_create_size_standard: ' + _product_url + ' Cause: ' + str(e))
+
+            # thumb_nail_image 따로 처리하기
+            img_url_list = self.get_image_list(_product_url, product_source)
+            product_image = ProductImage.objects.filter(product_info=product_info)
+            if img_url_list is not None:
+                for _img_url in img_url_list:
+                    try:
+                        # 똑같은 주소가 아니라면 업데이트
+                        product_image.filter(image_path=_img_url)
+                    except ProductImage.DoesNotExist:
+                        ProductImage.objects.create(
+                            product_info=product_info,
+                            image_path=_img_url,
+                            img_path_info=img_path_info_content
+                        )
+                        self.logger.debug('Success|create content image: ' + str(_img_url))
+            if self.thumb_nail_img_dic.get(_product_url):
+                _img_url = self.thumb_nail_img_dic.get(_product_url)
                 try:
-                    product_info = ProductInfo.objects.create(
-                        product_name=_product_name, product_url=_product_url, product_description=_product_description,
-                        product_no=_product_no, platform_info=self.platform_info, brand_info=self.brand_info,
-                        original_price=_price, gender_info=_gender_info, gender_dic=_gender_dic,
-                        category_info=_category_info, category_dic=_category_dic, sub_category_info=_sub_category_info,
-                        sub_category_dic=_sub_category_dic
+                    # 똑같은 주소가 아니라면 업데이트
+                    product_image.filter(image_path=_img_url)
+                except ProductImage.DoesNotExist:
+                    ProductImage.objects.create(
+                        product_info=product_info,
+                        image_path=_img_url,
+                        img_path_info=img_path_info_thumbnail
                     )
-                except Exception as e:
-                    self.logger.error('Unexpected Fail|create_product_info' + _product_url + ' Cause: ' + str(e))
-                    continue
-                try:
-                    self.size_standard = SizeStandard.objects.get(size_standard_name='cm')
-                    self.logger.debug('Success|get_size_standard')
-                except SizeStandard.DoesNotExist:
-                    self.size_standard = SizeStandard.objects.create(size_standard_name='cm')
-                    self.logger.debug('Success|create_size_standard')
-                except Exception as e:
-                    self.size_standard = None
-                    self.logger.error('Unexpected Fail|get_or_create_size_standard: ' + _product_url + ' Cause: ' + str(e))
+                    self.logger.debug('Success|create thumbnail image: ' + str(_img_url))
 
-                _img_url_list = self.get_image_list(_product_url, product_source)
-                product_image = ProductImage.objects.filter(product_info=product_info)
-                if _img_url_list is not None:
-                    for img_url in _img_url_list:
-                        try:
-                            # 똑같은 주소가 아니라면 업데이트
-                            product_image.filter(image_path=img_url)
-                        except ProductImage.DoesNotExist:
-                            ProductImage.objects.create(
-                                product_info=product_info,
-                                image_path=img_url,
-                                img_path_info=img_path_info_content
-                            )
-                            self.logger.debug('Success|create product image: ' + str(img_url))
-
-                size_table_url = self._get_size_table_url(product_source)
-                data = self.get_size_table(size_table_url)
-                if data is not None:
-                    self.save_size_table(data, product_info, _category_dic, _sub_category_dic)
+            size_table_url = self._get_size_table_url(product_source)
+            data = self.get_size_table(size_table_url)
+            if data is not None:
+                self.save_size_table(data, product_info, category_dic, sub_category_dic)
 
     def save_size_table(self, size_data, product_info, category_dic, sub_category_dic):
         size_unit_list = size_data.pop('사이즈')
         size_part_list = list(size_data.keys())
 
-        for size_part_name in size_part_list:
-            _category_size_part_info, _category_size_part_dic = self.get_category_size_part_info_and_dic(size_part_name, category_dic)
-            _sub_category_size_part_info, _sub_category_size_part_dic = self.get_sub_category_size_part_info_and_dic(size_part_name, sub_category_dic)
+        for _size_part_name in size_part_list:
+            category_size_part_info, category_size_part_dic = self.get_category_size_part_info_and_dic(_size_part_name, category_dic)
+            sub_category_size_part_info, sub_category_size_part_dic = self.get_sub_category_size_part_info_and_dic(_size_part_name, sub_category_dic)
 
-            size_value_partial_list = list(size_data.get(size_part_name))
+            size_value_partial_list = list(size_data.get(_size_part_name))
             for idx, size_value in enumerate(size_value_partial_list):
                 try:
-                    _size_info_res = SizeInfo.objects.get(
+                    size_info_res = SizeInfo.objects.get(
                         size_unit=size_unit_list[idx], product_info=product_info, size_standard=self.size_standard,
-                        category_size_part_info=_category_size_part_info,
-                        category_size_part_dic=_category_size_part_dic,
-                        sub_category_size_part_info=_sub_category_size_part_info,
-                        sub_category_size_part_dic=_sub_category_size_part_dic
+                        category_size_part_info=category_size_part_info,
+                        category_size_part_dic=category_size_part_dic,
+                        sub_category_size_part_info=sub_category_size_part_info,
+                        sub_category_size_part_dic=sub_category_size_part_dic
                     )
-                    _size_info_res.size_value = size_value
-                    _size_info_res.save()
-                    self.logger.debug('Success|modify: ' + str(_size_info_res))
+                    size_info_res.size_value = size_value
+                    size_info_res.save()
+                    self.logger.debug('Success|modify: ' + str(size_info_res))
 
                 except SizeInfo.DoesNotExist:
                     try:
-                        _size_info_res = SizeInfo.objects.create(
+                        size_info_res = SizeInfo.objects.create(
                             size_unit=size_unit_list[idx], size_value=size_value, product_info=product_info, size_standard=self.size_standard,
-                            category_size_part_info=_category_size_part_info,
-                            category_size_part_dic=_category_size_part_dic,
-                            sub_category_size_part_info=_sub_category_size_part_info,
-                            sub_category_size_part_dic=_sub_category_size_part_dic
+                            category_size_part_info=category_size_part_info,
+                            category_size_part_dic=category_size_part_dic,
+                            sub_category_size_part_info=sub_category_size_part_info,
+                            sub_category_size_part_dic=sub_category_size_part_dic
                         )
-                        self.logger.debug('Success|create: ' + str(_size_info_res))
+                        self.logger.debug('Success|create: ' + str(size_info_res))
                     except Exception as e:
                         self.logger.info('Unexpected Fail|save_size_info: ' + str(product_info) + ' Cause: ' + str(e))
                 except Exception as e:

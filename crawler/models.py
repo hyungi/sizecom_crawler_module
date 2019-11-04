@@ -16,7 +16,7 @@ class BrandConceptKeyword(models.Model):
     method_info = models.ForeignKey('MethodInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'brand_concept_keyword'
 
 
@@ -26,7 +26,7 @@ class BrandDic(models.Model):
     brand_info = models.ForeignKey('BrandInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'brand_dic'
 
 
@@ -42,7 +42,7 @@ class BrandInfo(models.Model):
     sizecom_user = models.ForeignKey('SizecomUser', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'brand_info'
 
     def __str__(self):
@@ -54,7 +54,7 @@ class BrandTrackingInfo(models.Model):
     brand_info = models.ForeignKey(BrandInfo, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'brand_tracking_info'
 
 
@@ -64,7 +64,7 @@ class CategoryDic(models.Model):
     category_info = models.ForeignKey('CategoryInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'category_dic'
 
     def __str__(self):
@@ -76,7 +76,7 @@ class CategoryInfo(models.Model):
     category_name = models.CharField(unique=True, max_length=20)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'category_info'
 
     def __str__(self):
@@ -87,11 +87,9 @@ class CategorySizePartDic(models.Model):
     category_size_part_dic_id = models.AutoField(primary_key=True)
     category_size_part_similar = models.CharField(max_length=50)
     category_size_part_info = models.ForeignKey('CategorySizePartInfo', models.DO_NOTHING, blank=True, null=True)
-    category_info = models.ForeignKey(CategoryInfo, models.DO_NOTHING, blank=True, null=True)
-    category_dic = models.ForeignKey(CategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'category_size_part_dic'
 
     def __str__(self):
@@ -105,7 +103,7 @@ class CategorySizePartInfo(models.Model):
     category_dic = models.ForeignKey(CategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'category_size_part_info'
 
     def __str__(self):
@@ -118,7 +116,7 @@ class GenderDic(models.Model):
     gender_info = models.ForeignKey('GenderInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'gender_dic'
 
 
@@ -127,7 +125,7 @@ class GenderInfo(models.Model):
     gender_name = models.CharField(unique=True, max_length=20, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'gender_info'
 
 
@@ -136,7 +134,7 @@ class ImagePathInfo(models.Model):
     image_path_type = models.CharField(unique=True, max_length=20, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'image_path_info'
 
 
@@ -146,7 +144,7 @@ class KeywordDic(models.Model):
     keyword_info = models.ForeignKey('KeywordInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'keyword_dic'
 
 
@@ -156,7 +154,7 @@ class KeywordInfo(models.Model):
     sizecom_user = models.ForeignKey('SizecomUser', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'keyword_info'
 
 
@@ -165,7 +163,7 @@ class MethodInfo(models.Model):
     method_type = models.CharField(unique=True, max_length=50)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'method_info'
 
 
@@ -175,7 +173,7 @@ class PlatformDic(models.Model):
     platform_info = models.ForeignKey('PlatformInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'platform_dic'
 
 
@@ -190,7 +188,7 @@ class PlatformInfo(models.Model):
     sizecom_user = models.ForeignKey('SizecomUser', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'platform_info'
 
     def __str__(self):
@@ -204,7 +202,7 @@ class PriceTrackingInfo(models.Model):
     product_info = models.ForeignKey('ProductInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'price_tracking_info'
 
 
@@ -215,7 +213,7 @@ class ProductConceptKeyword(models.Model):
     method_info = models.ForeignKey(MethodInfo, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'product_concept_keyword'
 
 
@@ -226,7 +224,7 @@ class ProductImage(models.Model):
     image_path_info = models.ForeignKey(ImagePathInfo, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'product_image'
 
 
@@ -254,7 +252,7 @@ class ProductInfo(models.Model):
     gender_dic = models.ForeignKey(GenderDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'product_info'
 
     def __str__(self):
@@ -272,7 +270,7 @@ class ProductReview(models.Model):
     product_info = models.ForeignKey(ProductInfo, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'product_review'
 
 
@@ -281,7 +279,7 @@ class RoleInfo(models.Model):
     role_name = models.CharField(max_length=20)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'role_info'
 
 
@@ -326,7 +324,7 @@ class SizeInfo(models.Model):
     sub_category_size_part_dic = models.ForeignKey('SubCategorySizePartDic', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'size_info'
 
     def __str__(self):
@@ -338,21 +336,19 @@ class SizeStandard(models.Model):
     size_standard_name = models.CharField(unique=True, max_length=20)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'size_standard'
-#
-#
-# class SizeStandardFormula(models.Model):
-#     size_standard_formular_id = models.AutoField(primary_key=True)
-#     formula = models.TextField()
-#     size_standard_to = models.ForeignKey(SizeStandard, models.DO_NOTHING, db_column='size_standard_to', blank=True,
-#                                          null=True)
-#     size_standard_from = models.ForeignKey(SizeStandard, models.DO_NOTHING, db_column='size_standard_from', blank=True,
-#                                            null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'size_standard_formula'
+
+
+class SizeStandardFormula(models.Model):
+    size_standard_formular_id = models.AutoField(primary_key=True)
+    formula = models.TextField()
+    size_standard_to = models.ForeignKey(SizeStandard, models.DO_NOTHING, db_column='size_standard_to', blank=True, null=True, related_name="size_standard_to")
+    size_standard_from = models.ForeignKey(SizeStandard, models.DO_NOTHING, db_column='size_standard_from', blank=True, null=True, related_name="size_standard_from")
+
+    class Meta:
+        managed = False
+        db_table = 'size_standard_formula'
 
 
 class SizecomUser(models.Model):
@@ -368,7 +364,7 @@ class SizecomUser(models.Model):
     gender_info = models.ForeignKey(GenderInfo, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'sizecom_user'
 
 
@@ -378,7 +374,7 @@ class SubCategoryDic(models.Model):
     sub_category_info = models.ForeignKey('SubCategoryInfo', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'sub_category_dic'
 
     def __str__(self):
@@ -392,7 +388,7 @@ class SubCategoryInfo(models.Model):
     category_dic = models.ForeignKey(CategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'sub_category_info'
 
     def __str__(self):
@@ -403,11 +399,9 @@ class SubCategorySizePartDic(models.Model):
     sub_category_size_part_dic_id = models.AutoField(primary_key=True)
     sub_category_size_part_similar = models.CharField(max_length=50)
     sub_category_size_part_info = models.ForeignKey('SubCategorySizePartInfo', models.DO_NOTHING, blank=True, null=True)
-    sub_category_info = models.ForeignKey(SubCategoryInfo, models.DO_NOTHING, blank=True, null=True)
-    sub_category_dic = models.ForeignKey(SubCategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'sub_category_size_part_dic'
 
     def __str__(self):
@@ -421,84 +415,110 @@ class SubCategorySizePartInfo(models.Model):
     sub_category_dic = models.ForeignKey(SubCategoryDic, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        # managed = False
+        managed = False
         db_table = 'sub_category_size_part_info'
 
     def __str__(self):
         return "%s | sub_category_info: %s" % (self.sub_category_size_part_name, self.sub_category_info)
 
-# class UserBodyProfile(models.Model):
-#     user_body_profile_id = models.AutoField(primary_key=True)
-#     height = models.FloatField(blank=True, null=True)
-#     weight = models.FloatField(blank=True, null=True)
-#     reg_date = models.DateTimeField(blank=True, null=True)
-#     size_standard = models.ForeignKey(SizeStandard, models.DO_NOTHING, blank=True, null=True)
-#     weight_standard = models.ForeignKey('WeightStandard', models.DO_NOTHING, blank=True, null=True)
-#     sizecom_user = models.ForeignKey(SizecomUser, models.DO_NOTHING, blank=True, null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'user_body_profile'
-#
-#
-# class UserCategorySizeProfile(models.Model):
-#     user_size_profile_id = models.AutoField(primary_key=True)
-#     size_value = models.CharField(max_length=20)
-#     reg_date = models.DateTimeField(blank=True, null=True)
-#     category_size_part_info = models.ForeignKey(CategorySizePartInfo, models.DO_NOTHING, blank=True, null=True)
-#     category_info = models.ForeignKey(CategoryInfo, models.DO_NOTHING, blank=True, null=True)
-#     user_body_profile = models.ForeignKey(UserBodyProfile, models.DO_NOTHING, blank=True, null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'user_category_size_profile'
+
+class UserBodyProfile(models.Model):
+    user_body_profile_id = models.AutoField(primary_key=True)
+    height = models.FloatField(blank=True, null=True)
+    weight = models.FloatField(blank=True, null=True)
+    reg_date = models.DateTimeField(blank=True, null=True)
+    size_standard = models.ForeignKey(SizeStandard, models.DO_NOTHING, blank=True, null=True)
+    weight_standard = models.ForeignKey('WeightStandard', models.DO_NOTHING, blank=True, null=True)
+    sizecom_user = models.ForeignKey(SizecomUser, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_body_profile'
 
 
-# class UserSizeLog(models.Model):
-#     user_size_log_id = models.AutoField(primary_key=True)
-#     reg_date = models.DateTimeField(blank=True, null=True)
-#     sizecom_user = models.ForeignKey(SizecomUser, models.DO_NOTHING, blank=True, null=True)
-#     size_info = models.ForeignKey(PlatformInfo, models.DO_NOTHING, blank=True, null=True)
-#     platform_info = models.ForeignKey(PlatformInfo, models.DO_NOTHING, blank=True, null=True)
-#     brand_info = models.ForeignKey(BrandInfo, models.DO_NOTHING, blank=True, null=True)
-#     product_info = models.ForeignKey(PlatformInfo, models.DO_NOTHING, blank=True, null=True)
-#     size_fit_label_info = models.ForeignKey(SizeFitLabelInfo, models.DO_NOTHING, blank=True, null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'user_size_log'
+class UserCategorySizeProfile(models.Model):
+    user_size_profile_id = models.AutoField(primary_key=True)
+    size_value = models.CharField(max_length=20)
+    reg_date = models.DateTimeField(blank=True, null=True)
+    category_size_part_info = models.ForeignKey(CategorySizePartInfo, models.DO_NOTHING, blank=True, null=True)
+    category_info = models.ForeignKey(CategoryInfo, models.DO_NOTHING, blank=True, null=True)
+    user_body_profile = models.ForeignKey(UserBodyProfile, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_category_size_profile'
 
 
-# class UserSubCategorySizeProfile(models.Model):
-#     user_size_profile_id = models.AutoField(primary_key=True)
-#     size_value = models.CharField(max_length=20)
-#     reg_date = models.DateTimeField(blank=True, null=True)
-#     sub_category_size_part_info = models.ForeignKey(SubCategorySizePartInfo, models.DO_NOTHING, blank=True, null=True)
-#     sub_category_info = models.ForeignKey(SubCategoryInfo, models.DO_NOTHING, blank=True, null=True)
-#     user_body_profile = models.ForeignKey(UserBodyProfile, models.DO_NOTHING, blank=True, null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'user_sub_category_size_profile'
-#
-#
-# class WeightStandard(models.Model):
-#     weight_standard_id = models.AutoField(primary_key=True)
-#     weight_standard_name = models.CharField(unique=True, max_length=20)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'weight_standard'
-#
-#
-# class WeightStandardFormula(models.Model):
-#     weight_standard_formula_id = models.AutoField(primary_key=True)
-#     formula = models.TextField()
-#     weight_standard_to = models.ForeignKey(WeightStandard, models.DO_NOTHING, db_column='weight_standard_to',
-#                                            blank=True, null=True)
-#     weight_standard_from = models.ForeignKey(WeightStandard, models.DO_NOTHING, db_column='weight_standard_from',
-#                                              blank=True, null=True)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'weight_standard_formula'
+class UserSizeLog(models.Model):
+    user_size_log_id = models.AutoField(primary_key=True)
+    reg_date = models.DateTimeField(blank=True, null=True)
+    sizecom_user = models.ForeignKey(SizecomUser, models.DO_NOTHING, blank=True, null=True)
+    size_info = models.ForeignKey(SizeInfo, models.DO_NOTHING, blank=True, null=True)
+    platform_info = models.ForeignKey(PlatformInfo, models.DO_NOTHING, blank=True, null=True)
+    brand_info = models.ForeignKey(BrandInfo, models.DO_NOTHING, blank=True, null=True)
+    product_info = models.ForeignKey(ProductInfo, models.DO_NOTHING, blank=True, null=True)
+    size_fit_label_info = models.ForeignKey(SizeFitLabelInfo, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_size_log'
+
+
+class UserSubCategorySizeProfile(models.Model):
+    user_size_profile_id = models.AutoField(primary_key=True)
+    size_value = models.CharField(max_length=20)
+    reg_date = models.DateTimeField(blank=True, null=True)
+    sub_category_size_part_info = models.ForeignKey(SubCategorySizePartInfo, models.DO_NOTHING, blank=True, null=True)
+    sub_category_info = models.ForeignKey(SubCategoryInfo, models.DO_NOTHING, blank=True, null=True)
+    user_body_profile = models.ForeignKey(UserBodyProfile, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'user_sub_category_size_profile'
+
+
+class WeightStandard(models.Model):
+    weight_standard_id = models.AutoField(primary_key=True)
+    weight_standard_name = models.CharField(unique=True, max_length=20)
+
+    class Meta:
+        managed = False
+        db_table = 'weight_standard'
+
+
+class WeightStandardFormula(models.Model):
+    weight_standard_formula_id = models.AutoField(primary_key=True)
+    formula = models.TextField()
+    weight_standard_to = models.ForeignKey(WeightStandard, models.DO_NOTHING, db_column='weight_standard_to', blank=True, null=True, related_name="weight_standard_to")
+    weight_standard_from = models.ForeignKey(WeightStandard, models.DO_NOTHING, db_column='weight_standard_from', blank=True, null=True, related_name="weight_standard_from")
+
+    class Meta:
+        managed = False
+        db_table = 'weight_standard_formula'
+
+
+class SizeTableView(models.Model):
+    platform_info_id = models.IntegerField(blank=True, null=False, primary_key=True)
+    brand_info_id = models.IntegerField(blank=True, null=True)
+    brand_name = models.CharField(max_length=100, blank=True, null=True)
+    product_info_id = models.IntegerField(blank=True, null=True)
+    product_name = models.CharField(max_length=200, blank=True, null=True)
+    size_info_id = models.IntegerField(blank=True, null=True)
+    size_unit = models.CharField(max_length=20, blank=True, null=True)
+    size_value = models.CharField(max_length=20, blank=True, null=True)
+    size_standard_id = models.IntegerField(blank=True, null=True)
+    size_standard_name = models.CharField(max_length=20, blank=True, null=True)
+    category_size_part_info_id = models.IntegerField(blank=True, null=True)
+    category_size_part_name = models.CharField(max_length=50, blank=True, null=True)
+    sub_category_size_part_info_id = models.IntegerField(blank=True, null=True)
+    sub_category_size_part_name = models.CharField(max_length=50, blank=True, null=True)
+    category_info_id = models.IntegerField(blank=True, null=True)
+    category_name = models.CharField(max_length=20, blank=True, null=True)
+    sub_category_info_id = models.IntegerField(blank=True, null=True)
+    sub_category_name = models.CharField(max_length=20, blank=True, null=True)
+    gender_info_id = models.IntegerField(blank=True, null=True)
+    reg_date = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False  # Created from a size_manager_view. Don't remove.
+        db_table = 'size_table_view'

@@ -1,7 +1,4 @@
-__pycache__/
-venv/
-.idea/
+/venv
+.idea
+chromedriver*
 db.sqlite3
-product_url_dic
-*.log
-migrations/

@@ -1,4 +1,4 @@
-"""size_dot_comm_crawler_module URL Configuration
+"""sizecom_crawler URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.2/topics/http/urls/
@@ -15,7 +15,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from crawler import crawler_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # Crawler
+    path('post/crawler/run',  crawler_view.run_crawler),
+    path('post/crawler/partial_run',  crawler_view.run_crawler),
+    path('post/category/crawler_manager',  crawler_view.post_category),
+    path('post/category_dic_and_info/crawler_manager', crawler_view.post_category_dic_and_info)
 ]

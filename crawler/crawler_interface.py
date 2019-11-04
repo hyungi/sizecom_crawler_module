@@ -1,5 +1,5 @@
 from abc import *
-from crawler.logger import Logger
+from .logger import Logger
 
 '''
 HOW TO RUN selenium-chrome ON NON-DISPLAY env
@@ -9,6 +9,7 @@ HOW TO RUN selenium-chrome ON NON-DISPLAY env
 4. Call pyvirtualdisplay.Display befroe using selenium
 5. Don't forget to use Chromedriver ver.0.73 for linux64
 '''
+
 
 class Crawler(metaclass=ABCMeta):
     """

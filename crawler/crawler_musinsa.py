@@ -1,5 +1,5 @@
-from crawler.crawler_interface import PlatformCrawler
-from crawler.models import *
+from .crawler_interface import PlatformCrawler
+from .models import *
 from django.utils import timezone
 
 
@@ -95,7 +95,7 @@ class MusinsaCrawler(PlatformCrawler):
         """
         :param brand_dic: brand_dic 바탕으로 각 브랜드별 상세 페이지를 얻어낸다. 품절 옵션 추가.
         https://store.musinsa.com/app/brand/goods_list/{brand_name}?brand_code={brand_name}&page=1&ex_soldout=Y
-        :return brand_main_url_list: 각 브랜드별 품절 옵션이 추가된 모든 페이지 url 을 return 한다.
+        :return brand_main_url_dic: 각 브랜드별 품절 옵션이 추가된 모든 페이지 url 을 return 한다.
         """
         brand_main_url_dic = {}
         for _brand_name in brand_dic.keys():
@@ -124,7 +124,7 @@ class MusinsaCrawler(PlatformCrawler):
         :param brand_main_url_dic: 각 브랜드별 품절 옵션이 추가된 모든 페이지의 url을 바탕으로 모든 페이지의 product_url을 추출한다.
         :return: product_url_dic
         """
-        _product_url_dic = {}
+        product_url_dic = {}
         for _brand_name in brand_main_url_dic.keys():
             _product_url_list = []
             for brand_main_url in brand_main_url_dic.get(_brand_name):
@@ -132,21 +132,23 @@ class MusinsaCrawler(PlatformCrawler):
                 for link in link_bs:
                     _product_url_list.append(self.url + link.get("href"))
             _product_url_list = list(set(_product_url_list))
-            _product_url_dic.update({_brand_name: _product_url_list})
-        return _product_url_dic
+            product_url_dic.update({_brand_name: _product_url_list})
+        self.logger.debug('get_product_url+dic: ' + str(len(product_url_dic)))
+        return product_url_dic
 
     def get_product_detail(self, overlap_chk, product_url_dic):
         # brand_main_url_list = self.get_product_url_list()
         self.product_info = ProductInfo.objects.filter(platform_info=self.platform_info)
         self.brand_info = BrandInfo.objects.filter(platform_info=self.platform_info)
-
         self.category_size_part_info = CategorySizePartInfo.objects.all()
         self.category_size_part_dic = CategorySizePartDic.objects.all()
         self.sub_category_size_part_info = SubCategorySizePartInfo.objects.all()
         self.sub_category_size_part_dic = SubCategorySizePartDic.objects.all()
         self.gender_info = GenderInfo.objects.all()
+
         img_path_info_content = ImagePathInfo.objects.get(pk=1)
         img_path_info_thumbnail = ImagePathInfo.objects.get(pk=2)
+
         for _brand_name in product_url_dic.keys():
             _brand_info = self.get_brand_info(_brand_name)
             for _product_url in product_url_dic.get(_brand_name):
@@ -164,113 +166,112 @@ class MusinsaCrawler(PlatformCrawler):
                     self.logger.debug('Success|product_info already exist: ' + str(product_info))
                     continue
 
-                else:
-                    product_source = self.get_page_html(_product_url)
-                    self.size_info = self.get_size_table(_product_url, product_source)
-                    _gender_info, _gender_dic = self.get_gender_info(_product_url, product_source)
-                    _product_name = self.get_product_name(_product_url, product_source)
-                    _product_no = self.get_product_no(_product_url, product_source)
-                    _product_description = self.get_product_description(_product_url, product_source)
-                    _category_info, _category_dic = self.get_category_info_and_dic(_product_url, product_source)
-                    _sub_category_info, _sub_category_dic = self.get_sub_category_info_and_dic(_product_url, product_source, _category_dic)
-                    _price, _sale_price = self.get_product_price(_product_url, product_source)
+                product_source = self.get_page_html(_product_url)
+                self.size_info = self.get_size_table(_product_url, product_source)
+                gender_info, gender_dic = self.get_gender_info(_product_url, product_source)
+                product_name = self.get_product_name(_product_url, product_source)
+                product_no = self.get_product_no(_product_url, product_source)
+                product_description = self.get_product_description(_product_url, product_source)
+                category_info, category_dic = self.get_category_info_and_dic(_product_url, product_source)
+                sub_category_info, sub_category_dic = self.get_sub_category_info_and_dic(_product_url, product_source, category_dic)
+                price, sale_price = self.get_product_price(_product_url, product_source)
 
+                try:
+                    product_info = ProductInfo.objects.create(
+                        product_name=product_name, product_url=_product_url, product_description=product_description,
+                        product_no=product_no, brand_info=_brand_info, original_price=price, discount_price=sale_price,
+                        category_info=category_info, category_dic=category_dic, sub_category_info=sub_category_info,
+                        sub_category_dic=sub_category_dic, platform_info=self.platform_info, gender_info=gender_info, gender_dic=gender_dic,
+                        reg_date=timezone.now()
+                    )
+                    self.logger.debug('Success|create product_info: ' + str(product_info.product_url))
+                except Exception as e:
+                    self.logger.error('Unexpected Fail|create or get product_info: ' + _product_url + ' Cause: ' + str(e))
+                    continue
+
+                thumb_list, detail_list = self.get_image_list(_product_url, product_source)
+                product_image = ProductImage.objects.filter(product_info=product_info)
+
+                for _img_url in thumb_list:
                     try:
-                        product_info = ProductInfo.objects.create(
-                            product_name=_product_name, product_url=_product_url, product_description=_product_description,
-                            product_no=_product_no, brand_info=_brand_info, original_price=_price, discount_price=_sale_price,
-                            category_info=_category_info, category_dic=_category_dic, sub_category_info=_sub_category_info,
-                            sub_category_dic=_sub_category_dic, platform_info=self.platform_info, gender_info=_gender_info, gender_dic=_gender_dic,
-                            reg_date=timezone.now()
+                        # 똑같은 주소가 아니라면 업데이트
+                        product_image.filter(image_path=_img_url)
+                    except ProductImage.DoesNotExist:
+                        ProductImage.objects.create(
+                            product_info=product_info,
+                            image_path=_img_url,
+                            img_path_info=img_path_info_thumbnail
                         )
-                        self.logger.debug('Success|create product_info: ' + str(product_info.product_url))
-                    except Exception as e:
-                        self.logger.error('Unexpected Fail|create or get product_info: ' + _product_url + ' Cause: ' + str(e))
-                        continue
+                        self.logger.debug('Success|create thumbnail image: ' + str(_img_url))
 
-                    _thumb_list, _detail_list = self.get_image_list(_product_url, product_source)
-                    product_image = ProductImage.objects.filter(product_info=product_info)
+                for _img_url in detail_list:
+                    try:
+                        # 똑같은 주소가 아니라면 업데이트
+                        product_image.filter(image_path=_img_url)
+                    except ProductImage.DoesNotExist:
+                        ProductImage.objects.create(
+                            product_info=product_info,
+                            image_path=_img_url,
+                            img_path_info=img_path_info_content
+                        )
+                        self.logger.debug('Success|create content image: ' + str(_img_url))
 
-                    for img_url in _thumb_list:
-                        try:
-                            # 똑같은 주소가 아니라면 업데이트
-                            product_image.filter(image_path=img_url)
-                        except ProductImage.DoesNotExist:
-                            ProductImage.objects.create(
-                                product_info=product_info,
-                                image_path=img_url,
-                                img_path_info=img_path_info_thumbnail
-                            )
-                            self.logger.debug('Success|create product image: ' + str(img_url))
-
-                    for img_url in _detail_list:
-                        try:
-                            # 똑같은 주소가 아니라면 업데이트
-                            product_image.filter(image_path=img_url)
-                        except ProductImage.DoesNotExist:
-                            ProductImage.objects.create(
-                                product_info=product_info,
-                                image_path=img_url,
-                                img_path_info=img_path_info_content
-                            )
-                            self.logger.debug('Success|create product image: ' + str(img_url))
-
-                    if self.size_info is None:
-                        self.logger.info('no size data')
-                    else:
-                        self.save_size_table(product_info, _category_dic, _sub_category_dic)
+                if self.size_info is None:
+                    self.logger.info('no size data')
+                else:
+                    self.save_size_table(product_info, category_dic, sub_category_dic)
 
     def save_size_table(self, product_info, category_dic, sub_category_dic):
         """
         class 에 저장된 정보를 db 로 옮기는 작업
         """
-        _size_info = self.size_info
-        size_unit_list = _size_info.pop('사이즈')
-        size_part_list = list(_size_info.keys())
+        size_info = self.size_info
+        size_unit_list = size_info.pop('사이즈')
+        size_part_list = list(size_info.keys())
 
-        for size_part_name in size_part_list:
+        for _size_part_name in size_part_list:
             try:
-                _size_standard_info = SizeStandard.objects.get(size_standard_name=self.size_standard)
-                self.logger.debug('Success|get_size_standard_info: ' + str(_size_standard_info))
+                size_standard_info = SizeStandard.objects.get(size_standard_name=self.size_standard)
+                self.logger.debug('Success|get_size_standard_info: ' + str(size_standard_info))
             except SizeStandard.DoesNotExist:
-                _size_standard_info = SizeStandard.objects.create(size_standard_name=self.size_standard)
-                self.logger.debug('Success|create_size_standard_info: ' + str(_size_standard_info))
+                size_standard_info = SizeStandard.objects.create(size_standard_name=self.size_standard)
+                self.logger.debug('Success|create_size_standard_info: ' + str(size_standard_info))
             except Exception as e:
-                _size_standard_info = None
+                size_standard_info = None
                 self.logger.info('Fail|create_or_get_size_standard_info: ' + product_info.product_url + ' Cause: ' + str(e))
 
-            _category_size_part_info, _category_size_part_dic = self.get_category_size_part_info_and_dic(size_part_name, category_dic)
-            _sub_category_size_part_info, _sub_category_size_part_dic = self.get_sub_category_size_part_info_and_dic(size_part_name, sub_category_dic)
+            category_size_part_info, _category_size_part_dic = self.get_category_size_part_info_and_dic(_size_part_name, category_dic)
+            sub_category_size_part_info, _sub_category_size_part_dic = self.get_sub_category_size_part_info_and_dic(size_standard_info, sub_category_dic)
 
-            size_value_partial_list = list(_size_info.get(size_part_name))
-            for idx, size_value in enumerate(size_value_partial_list):
-                if size_value == "":
-                    size_value = None
+            size_value_partial_list = list(size_info.get(_size_part_name))
+            for idx, _size_value in enumerate(size_value_partial_list):
+                if _size_value == "":
+                    _size_value = None
                 # 중복이면 업데이트
                 try:
-                    _size_info_res = SizeInfo.objects.get(
+                    size_info_res = SizeInfo.objects.get(
                         size_unit=size_unit_list[idx], product_info=product_info,
-                        size_standard=_size_standard_info,
-                        category_size_part_info=_category_size_part_info,
+                        size_standard=size_standard_info,
+                        category_size_part_info=category_size_part_info,
                         category_size_part_dic=_category_size_part_dic,
-                        sub_category_size_part_info=_sub_category_size_part_info,
+                        sub_category_size_part_info=sub_category_size_part_info,
                         sub_category_size_part_dic=_sub_category_size_part_dic
                     )
-                    _size_info_res.size_value = size_value
-                    _size_info_res.save()
-                    self.logger.debug('Success|update size_info: ' + str(_size_info_res))
+                    size_info_res.size_value = _size_value
+                    size_info_res.save()
+                    self.logger.debug('Success|update size_info: ' + str(size_info_res))
                 except SizeInfo.DoesNotExist:
                     # 없으면 새로 만들기
                     try:
-                        _size_info_res = SizeInfo.objects.create(
-                            size_unit=size_unit_list[idx], size_value=size_value, product_info=product_info,
-                            size_standard=_size_standard_info,
-                            category_size_part_info=_category_size_part_info,
+                        size_info_res = SizeInfo.objects.create(
+                            size_unit=size_unit_list[idx], size_value=_size_value, product_info=product_info,
+                            size_standard=size_standard_info,
+                            category_size_part_info=category_size_part_info,
                             category_size_part_dic=_category_size_part_dic,
-                            sub_category_size_part_info=_sub_category_size_part_info,
+                            sub_category_size_part_info=sub_category_size_part_info,
                             sub_category_size_part_dic=_sub_category_size_part_dic
                         )
-                        self.logger.debug('Success|create size_info: ' + str(_size_info_res))
+                        self.logger.debug('Success|create size_info: ' + str(size_info_res))
                     except Exception as e:
                         self.logger.info('Fail|create size_info: ' + product_info.product_url + 'Cause: ' + str(e))
                 except Exception as e:
@@ -292,58 +293,58 @@ class MusinsaCrawler(PlatformCrawler):
 
     def get_category_info_and_dic(self, product_url, product_source):
         try:
-            _category_name = product_source.select_one('.item_categories').find_all('a')[1].get_text(strip=True)
-            self.logger.debug('Success|get category_name: ' + str(_category_name))
+            category_name = product_source.select_one('.item_categories').find_all('a')[1].get_text(strip=True)
+            self.logger.debug('Success|get category_name: ' + str(category_name))
         except Exception as e:
             self.logger.info('Fail|get category_name: ' + product_url + ' Cause: ' + str(e))
             return None, None
 
         try:
-            _category_dic = CategoryDic.objects.get(category_similar=_category_name)
-            _category_info = _category_dic.category_info
-            self.logger.debug('Success|get_category_dic: ' + _category_dic.category_similar)
+            category_dic = CategoryDic.objects.get(category_similar=category_name)
+            category_info = category_dic.category_info
+            self.logger.debug('Success|get_category_dic: ' + category_dic.category_similar)
         except CategoryDic.DoesNotExist:
-            _category_info = CategoryInfo.objects.create(category_name=_category_name)
-            _category_dic = CategoryDic.objects.create(
-                category_similar=_category_name, category_info=_category_info
+            category_info = CategoryInfo.objects.create(category_name=category_name)
+            category_dic = CategoryDic.objects.create(
+                category_similar=category_name, category_info=category_info
             )
-            self.logger.debug('Success|create_category_dic: ' + _category_dic.category_similar)
+            self.logger.debug('Success|create_category_dic: ' + category_dic.category_similar)
         except Exception as e:
             self.logger.info(
-                'Fail|get_or_create_category_dic and _info: ' + _category_name + ' Cause: ' + str(e)
+                'Fail|get_or_create_category_dic and _info: ' + category_name + ' Cause: ' + str(e)
             )
             return None, None
-        return _category_info, _category_dic
+        return category_info, category_dic
 
     def get_sub_category_info_and_dic(self, product_url, product_source, category_dic):
         try:
-            _sub_category_name = product_source.select_one('.item_categories').find_all('a')[2].get_text(strip=True)
-            self.logger.debug('Success|get_sub_category_name: ' + str(_sub_category_name))
+            sub_category_name = product_source.select_one('.item_categories').find_all('a')[2].get_text(strip=True)
+            self.logger.debug('Success|get_sub_category_name: ' + str(sub_category_name))
         except Exception as e:
             self.logger.info('Fail|get get_sub_category_name: ' + product_url + ' Cause: ' + str(e))
             return None, None
 
         try:
-            _sub_category_dic = SubCategoryDic.objects.get(sub_category_similar=_sub_category_name)
-            _sub_category_info = _sub_category_dic.sub_category_info
-            if _sub_category_info.category_info is None:
-                _sub_category_info.category_info = category_dic.category_info
-            if _sub_category_info.category_dic is None:
-                _sub_category_info.category_dic = category_dic
-            _sub_category_info.save()
-            self.logger.debug('Success|get_sub_category_dic: ' + _sub_category_dic.sub_category_similar)
+            sub_category_dic = SubCategoryDic.objects.get(sub_category_similar=sub_category_name)
+            sub_category_info = sub_category_dic.sub_category_info
+            if sub_category_info.category_info is None:
+                sub_category_info.category_info = category_dic.category_info
+            if sub_category_info.category_dic is None:
+                sub_category_info.category_dic = category_dic
+            sub_category_info.save()
+            self.logger.debug('Success|get_sub_category_dic: ' + sub_category_dic.sub_category_similar)
         except SubCategoryDic.DoesNotExist:
-            _sub_category_info = SubCategoryInfo.objects.create(
-                sub_category_name=_sub_category_name, category_info=category_dic.category_info, category_dic=category_dic
+            sub_category_info = SubCategoryInfo.objects.create(
+                sub_category_name=sub_category_name, category_info=category_dic.category_info, category_dic=category_dic
             )
-            _sub_category_dic = SubCategoryDic.objects.create(
-                sub_category_similar=_sub_category_name, sub_category_info=_sub_category_info
+            sub_category_dic = SubCategoryDic.objects.create(
+                sub_category_similar=sub_category_name, sub_category_info=sub_category_info
             )
-            self.logger.debug('Success|create_sub_category_dic: ' + _sub_category_dic.sub_category_similar)
+            self.logger.debug('Success|create_sub_category_dic: ' + sub_category_dic.sub_category_similar)
         except Exception as e:
-            self.logger.info('Fail|get_or_create_sub_category_dic and _info: ' + _sub_category_name + ' Cause: ' + str(e))
+            self.logger.info('Fail|get_or_create_sub_category_dic and _info: ' + sub_category_name + ' Cause: ' + str(e))
             return None, None
-        return _sub_category_info, _sub_category_dic
+        return sub_category_info, sub_category_dic
 
     def get_image_list(self, product_url, product_source):
         # <ul class="product_thumb">
@@ -353,6 +354,7 @@ class MusinsaCrawler(PlatformCrawler):
         img_detail_list = product_source.select_one('#detail_view')
 
         if img_detail_list is None and img_thumb_list is None:
+            self.logger.info('Fail|No image ' + product_url)
             return thumb_list, detail_list
         elif img_thumb_list is None:
             img_detail_list = img_detail_list.find_all('img')
@@ -525,11 +527,17 @@ class MusinsaCrawler(PlatformCrawler):
             category_dic=category_dic
         )
         self.logger.debug('Success|create_category_size_part_info: ' + str(size_part_info))
-        size_part_dic = CategorySizePartDic.objects.create(
-            category_size_part_similar=size_part_name, category_size_part_info=size_part_info,
-            category_info=category_dic.category_info, category_dic=category_dic
-        )
-        self.logger.debug('Success|create_category_size_part_dic: ' + str(size_part_dic))
+
+        try:
+            size_part_dic = CategorySizePartDic.objects.create(
+                category_size_part_similar=size_part_name, category_size_part_info=size_part_info,
+            )
+            self.logger.debug('Success|create_category_size_part_dic: ' + str(size_part_dic))
+
+        except TypeError as e:
+            self.logger.info('Fail|create_category_size_part_dic: ' + str(e))
+            size_part_dic = None
+
         return size_part_info, size_part_dic
 
     def get_sub_category_size_part_info_and_dic(self, size_part_name, sub_category_dic):
@@ -553,7 +561,7 @@ class MusinsaCrawler(PlatformCrawler):
         self.logger.debug('Success|create_sub_category_size_part_info: ' + str(size_part_info))
         size_part_dic = SubCategorySizePartDic.objects.create(
             sub_category_size_part_similar=size_part_name, sub_category_size_part_info=size_part_info,
-            sub_category_info=sub_category_dic.sub_category_info, sub_category_dic=sub_category_dic
+            #  sub_category_info=sub_category_dic.sub_category_info, sub_category_dic=sub_category_dic
         )
         self.logger.debug('Success|create_sub_category_size_part_dic: ' + str(size_part_dic))
         return size_part_info, size_part_dic
