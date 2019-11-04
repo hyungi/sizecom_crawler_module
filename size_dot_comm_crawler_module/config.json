@@ -1,0 +1,23 @@
+{
+  "MAIN": {
+    "HOST": "115.23.164.22",
+    "PORT": "5432",
+    "NAME":"sizecom_dev",
+    "USER": "sizecom_admin",
+    "PASSWORD": "sz135!@"
+  },
+
+  "DEV": {
+    "HOST": "115.23.164.22",
+    "PORT": "5432",
+    "NAME":"sizecom_main",
+    "USER": "sizecom_admin",
+    "PASSWORD": "sz135!@"
+  },
+  "local":
+  {
+    "ENGINE": "django.db.backends.sqlite3",
+    "NAME": "os.path.join(BASE_DIR, 'db.sqlite3')"
+  },
+  "SECRET_KEY": "%xcb!3j8nt&j$bn@iibl(eh6a*w-(_mswd35zyr1o*b*l+y&xf"
+}
